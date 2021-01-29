@@ -4,8 +4,10 @@ __author__ = "tyronevb"
 __date__ = "2021"
 
 import argparse
+import sys
 
-from ..src.lfa_framework import AutomatedLFAFramework
+sys.path.append("..")
+from src.lfa_framework import AutomatedLFAFramework
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Automated LFA Framework in either Training or Inference Mode")
@@ -54,16 +56,16 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--mode", action="store", choices=["training", "inference"], default="training",
                         help="Specify which mode to operate the Framework in. Either training mode or inference mode. "
                              "Configuration files must also be for the required mode.")
-    parser.add_argument("-s", "-datastore", action="store", type=str, default=None,
+    parser.add_argument("-s", "--datastore", action="store", type=str, default=None,
                         help="Path to existing datastore containing log keys and events for the system in question. "
                              "Is required when operating in Inference Mode")
-    parser.add_argument("-u", "--update_store", action="store", type=bool, default=True,
+    parser.add_argument("-u", "--update_store", action="store_true",
                         help="Specify whether the datastore should be updated if new log keys are found.")
 
     args = parser.parse_args()
 
     print("\n====================================")
-    print("Running LFA Framework . . .\n")
+    print("Running Automated LFA Framework . . .\n")
 
     # create AutomatedLFAFramework instance
     lfa_framework = AutomatedLFAFramework(data_miner_config=args.data_miner_config,
@@ -76,17 +78,17 @@ if __name__ == "__main__":
                                           datastore=args.datastore,
                                           update_datastore=args.update_store)
 
-    if args.mode == "train":
+    if args.mode == "training":
         # training mode
-        print("Running framework in Training Mode . . .")
+        print("Running framework in Training Mode . . .\n")
         lfa_framework.train_anomaly_detection_model(input_log_file_name=args.log_file)
 
     else:
         # inference mode
-        if args.datasore is None:
+        if args.datastore is None:
             print("Datastore required when running in inference mode. Framework shutting down . . .")
         else:
-            print("Running framework in Inference Mode . . .")
+            print("Running framework in Inference Mode . . .\n")
             lfa_framework.generate_debugging_report(input_log_file_name=args.log_file, verbose=True)
 
     print("====================================\n")

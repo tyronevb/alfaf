@@ -9,16 +9,20 @@ other errors that occurred during the system's operation.
 __author__ = "tyronevb"
 __date__ = "2021"
 
+import sys
+
+sys.path.append("../")
+sys.path.append(".../")
+sys.path.append("../../data_miner/")
+sys.path.append("../../inference_engine/")
 # import classes implementing the subcomponents
-from ...data_miner.src.data_miner import DataMiner
-from ...inference_engine.src.inference_engine import InferenceEngine
+from src.data_miner import DataMiner
+from src.inference_engine import InferenceEngine
 
 # other imports
 import pandas as pd
 import datetime
-import torch
-
-# todo: test training and inference modes
+from torch.utils.data import DataLoader
 
 
 class AutomatedLFAFramework(object):
@@ -28,7 +32,7 @@ class AutomatedLFAFramework(object):
                  output_dir: str = None,
                  name: str = "default",
                  device: str = None,
-                 mode: str = "train",
+                 mode: str = "training",
                  datastore: str = None,
                  update_datastore: bool = False):
         """
@@ -52,7 +56,7 @@ class AutomatedLFAFramework(object):
         :param output_dir: path to output directory where all outputs are to be stores, include trailing /
         :param name: a name for this instance of the AutomatedLFAFramework
         :param device: what compute device to use for training: "cpu" or "cuda" if available
-        :param mode: mode of operation: "train" or "infer"
+        :param mode: mode of operation: "training" or "inference"
         :param datastore: path to previously created datastore. Required if used in Inference Mode
         :param update_datastore: specify whether the datastore is to be updated
         """
@@ -62,9 +66,9 @@ class AutomatedLFAFramework(object):
 
         # set working attributes
         self.input_dir = input_dir
-        self.output_dir = output_dir
         self.name = name
-        self.training_mode = True if mode == "train" else False
+        self.output_dir = "{base}{name}_{timestamp}/".format(base=output_dir, name=self.name, timestamp=datetime.datetime.now().strftime("%d-%m-%y_%H_%M_%S"))
+        self.training_mode = True if mode == "training" else False
 
         # instantiate DataMiner
         self.data_miner = DataMiner(config_file=data_miner_config,
@@ -76,6 +80,7 @@ class AutomatedLFAFramework(object):
         self.inference_engine = InferenceEngine(config_file=inference_engine_config,
                                                 name=self.name,
                                                 device=device,
+                                                output_dir=self.output_dir,
                                                 verbose=True)
 
         # attribute to keep a copy of the original parsed log; output from data miner - loaded by the _data_preparation method
@@ -113,7 +118,6 @@ class AutomatedLFAFramework(object):
         :param verbose: Flag to enable printing of statics and some preliminary debug information
         :return: None. Debug Report is written to a file.
         """
-        # todo: test
 
         # first generate the anomaly detection report using the Inference Engine
         anomaly_detection_report = self._infer_and_detect_anomalies(input_log_file_name=input_log_file_name)
@@ -128,20 +132,31 @@ class AutomatedLFAFramework(object):
         debug_report = self._generate_debug_report(df_parsed_log=self.df_parsed_log,
                                                    df_translated_ad_report=translated_ad_report)
 
+        # get suspicious lines
+        sus_lines = debug_report.loc[debug_report["anomaly"] == 1]
+
         # create a path name for the debug report
-        output_path = "{directory}{name}_{timestamp}_debug_report.csv".format(directory=self.output_dir,
-                                                                              name=self.name,
-                                                                              timestamp=datetime.datetime.now().strftime("%d-%m-%Y-%Hh%Mm%Ss"))
+        output_path = "{directory}{name}_{timestamp}_debug_report".format(directory=self.output_dir,
+                                                                          name=self.name,
+                                                                          timestamp=datetime.datetime.now().strftime("%d-%m-%Y-%Hh%Mm%Ss"))
+
+
         # write debug report to csv file
-        debug_report.to_csv(output_path)
+        debug_report.to_csv(output_path + ".csv")
+
+        # write suspicious lines only to csv file'
+        sus_lines.to_csv(output_path + "_sus_lines.csv")
 
         # print out some stats if verbose is enabled
         if verbose:
-            print("Log File analysed: {log_file}".format(log_file=input_log_file_name))
+            print("\nLog File analysed: {log_file}".format(log_file=input_log_file_name))
             print("Number of lines: {num_lines}".format(num_lines=len(self.df_parsed_log)))
             print("Number of potential anomalous lines: {anomaly_count}".format(anomaly_count=anomaly_cnt))
+            print("Suspicious log file lines: {lines}".format(lines=sus_lines["LineId"].tolist()))
+            print("\nDebug Report available at: {report}".format(report=output_path+".csv"))
+            print("Suspicious Lines Report available at: {report}".format(report=output_path + "_sus_lines.csv"))
 
-    def _data_preparation(self, input_log_file_name: str) -> torch.DataLoader or pd.DataFrame:
+    def _data_preparation(self, input_log_file_name: str) -> DataLoader or pd.DataFrame:
         """
         Prepare the input, raw log file for processing.
 
@@ -167,9 +182,10 @@ class AutomatedLFAFramework(object):
         if not self.training_mode:
             df_parsed_log, df_new_events = self._retrieve_log_keys_from_datastore(datastore=self.datastore)
             self.df_parsed_log = df_parsed_log  # update the class reference of the parsed log file with the version with the retrieved log keys
-            # update datastore
+            # update datastore if there are new events and if updating is enabled
             if self.update_datastore:
-                self._update_datastore(datastore=self.datastore, df_new_log_events=df_new_events)
+                if not df_new_events.empty:
+                    self._update_datastore(datastore=self.datastore, df_new_log_events=df_new_events)
 
         # extract features
         features_dataset = self.inference_engine.get_features(df_parsed_log=df_parsed_log)
@@ -211,7 +227,7 @@ class AutomatedLFAFramework(object):
         # save datastore to csv file
         df_datastore.to_csv(output_path)
 
-        print("Data Store created: {filename".format(filename=output_path))
+        print("Data Store created: {filename}".format(filename=output_path))
 
     def _retrieve_log_keys_from_datastore(self, datastore: str) -> (pd.DataFrame, pd.DataFrame):
         """
@@ -291,14 +307,14 @@ class AutomatedLFAFramework(object):
         """
 
         # load the existing datastore
-        df_datastore = pd.readcsv(datastore)
+        df_datastore = pd.read_csv(datastore)
 
         # prepare the new log events
         df_new_log_events = self._prepare_new_events_for_datastore(df_new_log_events=df_new_log_events)
 
         # add the new log events (keys and templates) to the datastore
         df_updated_datastore = pd.concat([df_datastore, df_new_log_events], axis=0)
-        df_updated_datastore.reset_index(drop=True, inplace=True) # reset the dataframe index
+        df_updated_datastore.reset_index(drop=True, inplace=True)  # reset the dataframe index
 
         output_path = "{directory}{name}_{timestamp}_datastore.csv".format(directory=self.output_dir,
                                                                            name=self.name,
@@ -307,7 +323,7 @@ class AutomatedLFAFramework(object):
         # save the updated datastore to a csv file
         df_updated_datastore.to_csv(output_path)
 
-        print("Updated Data Store created: {filename".format(filename=output_path))
+        print("Updated Data Store created: {filename}".format(filename=output_path))
 
     def _infer_and_detect_anomalies(self, input_log_file_name: str) -> pd.DataFrame:
         """
@@ -316,7 +332,6 @@ class AutomatedLFAFramework(object):
         :param input_log_file_name: filename of the system log file to be analysed
         :return: DataFrame containing an Anomaly Detection Report as generated by the Inference Engine
         """
-        # todo: test
 
         # load log file, parse to a structured dataset and extract features
         features_dataset = self._data_preparation(input_log_file_name=input_log_file_name)
