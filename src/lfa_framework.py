@@ -10,8 +10,8 @@ __author__ = "tyronevb"
 __date__ = "2021"
 
 # import classes implementing the subcomponents
-from ..data_miner.src.data_miner import DataMiner
-from ..inference_engine.src.inference_engine import InferenceEngine
+from ...data_miner.src.data_miner import DataMiner
+from ...inference_engine.src.inference_engine import InferenceEngine
 
 # other imports
 import pandas as pd
