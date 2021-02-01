@@ -36,7 +36,7 @@ class AutomatedLFAFramework(object):
         name: str = "default",
         device: str = None,
         mode: str = "training",
-        datastore: str = None,
+        log_key_datastore: str = None,
         update_datastore: bool = False,
     ):
         """
@@ -61,7 +61,7 @@ class AutomatedLFAFramework(object):
         :param name: a name for this instance of the AutomatedLFAFramework
         :param device: what compute device to use for training: "cpu" or "cuda" if available
         :param mode: mode of operation: "training" or "inference"
-        :param datastore: path to previously created datastore. Required if used in Inference Mode
+        :param log_key_datastore: path to previously created log key datastore. Required if used in Inference Mode
         :param update_datastore: specify whether the datastore is to be updated
         """
         assert type(data_miner_config) == str, "Configuration file for Data Miner must be provided"
@@ -89,7 +89,7 @@ class AutomatedLFAFramework(object):
         self.df_parsed_log = None
 
         # store path to datastore
-        self.datastore = datastore
+        self.log_key_datastore = log_key_datastore
 
         # flag to specify whther datastore shouold be updates
         self.update_datastore = update_datastore
@@ -108,7 +108,7 @@ class AutomatedLFAFramework(object):
         # train the anomaly detection model
         self.inference_engine.train_model(train_data=data_loader)
 
-    def generate_debugging_report(self, input_log_file_name: str, verbose: bool) -> None:
+    def analyse_log_file(self, input_log_file_name: str, verbose: bool) -> None:
         """
         Perform deep learning-assisted Log FIle Analysis on a given log file.
 
@@ -181,12 +181,12 @@ class AutomatedLFAFramework(object):
 
         # if inference mode, compare to datastore and replace log keys with that in store
         if not self.training_mode:
-            df_parsed_log, df_new_events = self._retrieve_log_keys_from_datastore(datastore=self.datastore)
+            df_parsed_log, df_new_events = self._retrieve_log_keys_from_datastore(datastore=self.log_key_datastore)
             self.df_parsed_log = df_parsed_log  # update the class reference of the parsed log file with the version with the retrieved log keys
             # update datastore if there are new events and if updating is enabled
             if self.update_datastore:
                 if not df_new_events.empty:
-                    self._update_datastore(datastore=self.datastore, df_new_log_events=df_new_events)
+                    self._update_datastore(datastore=self.log_key_datastore, df_new_log_events=df_new_events)
 
         # extract features
         features_dataset = self.inference_engine.get_features(df_parsed_log=df_parsed_log)

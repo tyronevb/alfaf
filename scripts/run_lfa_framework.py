@@ -112,7 +112,7 @@ if __name__ == "__main__":
         name=args.name,
         device=args.compute_device,
         mode=args.mode,
-        datastore=args.datastore,
+        log_key_datastore=args.datastore,
         update_datastore=args.update_store,
     )
 
@@ -127,7 +127,7 @@ if __name__ == "__main__":
             print("Datastore required when running in inference mode. Framework shutting down . . .")
         else:
             print("Running framework in Inference Mode . . .\n")
-            lfa_framework.generate_debugging_report(input_log_file_name=args.log_file, verbose=True)
+            lfa_framework.analyse_log_file(input_log_file_name=args.log_file, verbose=True)
 
     print("====================================\n")
 
