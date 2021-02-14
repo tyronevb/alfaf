@@ -357,7 +357,8 @@ class AutomatedLFAFramework(object):
         for idx, row in df_anomaly_detection_report.iterrows():
             tmp = dict()
             tmp["log_key_sequence"] = [reverse_transformation[int(feature_key)] for feature_key in row["input_seq"]]
-            tmp["actual_next_key"] = [reverse_transformation[int(actual_key)] for actual_key in row["actual_label"]]
+            tmp["predicted_next_key"] = reverse_transformation[row["predicted_label"]]
+            tmp["actual_next_key"] = reverse_transformation[row["actual_label"]]
             tmp["candidate_keys"] = [reverse_transformation[int(candidate_key)] for candidate_key in row["candidates"]]
             tmp["anomaly"] = row["anomaly"]
             report_lines.append(tmp)
