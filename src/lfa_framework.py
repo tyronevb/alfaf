@@ -199,6 +199,8 @@ class AutomatedLFAFramework(object):
                 if not df_new_events.empty:
                     self._update_datastore(datastore=self.log_key_datastore, df_new_log_events=df_new_events)
 
+        # set the event_keys attribute for the FeatureExtractor after log parsing
+        self.inference_engine.feature_extractor.event_keys = path_to_event_matrix
         # extract features
         features_dataset = self.inference_engine.get_features(df_parsed_log=df_parsed_log)
 
