@@ -105,6 +105,17 @@ class AutomatedLFAFramework(object):
         # load log file, parse log file, extract features, load into DataLoader iterable for training
         data_loader = self._data_preparation(input_log_file_name=input_log_file_name)
 
+        # get the total number of classes from datastore
+        num_classes = self.inference_engine.feature_extractor.num_unique_keys
+        print(
+            "Number of unique classes / log event keys = {keys}. (This should be output size of the model"
+            "for inference mode)".format(keys=num_classes)
+        )
+
+        # update the inference_engine parameters
+        self.inference_engine.output_size = num_classes
+        self.inference_engine.update_component_parameters()
+
         # train the anomaly detection model
         self.inference_engine.train_model(train_data=data_loader)
 
