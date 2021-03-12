@@ -1,3 +1,6 @@
 [submodule "data_miner"]
 	path = data_miner
 	url = https://github.com/tyronevb/data_miner
+[submodule "inference_engine"]
+	path = inference_engine
+	url = https://github.com/tyronevb/inference_engine
